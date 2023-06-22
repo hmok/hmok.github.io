@@ -20,17 +20,23 @@
 
     function startTimer() {
       document.getElementById('timer').innerHTML = '20 sec GO';
-      setTimeout(startGO, 20000); // Start the GO interval after 20 seconds
+      setTimeout(countdown, 20000); // Start the countdown after 20 seconds
     }
 
-    function startGO() {
-      document.getElementById('timer').innerHTML = '10 sec Rest';
-      setTimeout(startRest, 10000); // Start the Rest interval after 10 seconds
-    }
+    function countdown() {
+      var count = 20;
+      var display = document.getElementById('timer');
 
-    function startRest() {
-      document.getElementById('timer').innerHTML = '20 sec GO';
-      setTimeout(startGO, 20000); // Start the GO interval after 20 seconds
+      var interval = setInterval(function() {
+        display.innerHTML = count + ' sec';
+        count--;
+
+        if (count < 0) {
+          clearInterval(interval);
+          display.innerHTML = '10 sec Rest';
+          setTimeout(startTimer, 10000); // Start the next round after 10 seconds
+        }
+      }, 1000);
     }
 
     function stopTimer() {
