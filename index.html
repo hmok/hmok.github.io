@@ -19,24 +19,24 @@
     var timer;
 
     function startTimer() {
-      document.getElementById('timer').innerHTML = '20 sec GO';
-      setTimeout(countdown, 20000); // Start the countdown after 20 seconds
+      document.getElementById('timer').innerHTML = '20 sec';
+      countdown(20); // Start the countdown from 20 seconds
     }
 
-    function countdown() {
-      var count = 20;
+    function countdown(count) {
       var display = document.getElementById('timer');
 
-      var interval = setInterval(function() {
+      if (count >= 0) {
         display.innerHTML = count + ' sec';
         count--;
 
-        if (count < 0) {
-          clearInterval(interval);
-          display.innerHTML = '10 sec Rest';
-          setTimeout(startTimer, 10000); // Start the next round after 10 seconds
-        }
-      }, 1000);
+        setTimeout(function() {
+          countdown(count);
+        }, 1000);
+      } else {
+        display.innerHTML = '10 sec Rest';
+        setTimeout(startTimer, 10000); // Start the next round after 10 seconds
+      }
     }
 
     function stopTimer() {
