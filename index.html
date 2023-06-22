@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HIIT Timer</title>
+  <style>
+    #timer {
+      font-size: 48px;
+      text-align: center;
+      margin-top: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div id="timer">HIIT Timer</div>
+
+  <script>
+    var seconds = 0;
+    var timer;
+
+    function startTimer() {
+      timer = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      if (seconds < 20) {
+        document.getElementById('timer').innerHTML = '20 sec GO';
+      } else if (seconds < 30) {
+        document.getElementById('timer').innerHTML = '10 sec Rest';
+      } else if (seconds === 300) {
+        document.getElementById('timer').innerHTML = 'Well done!';
+        clearInterval(timer);
+      }
+
+      seconds++;
+    }
+
+    startTimer();
+  </script>
+</body>
+</html>
