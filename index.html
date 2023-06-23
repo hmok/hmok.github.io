@@ -2,50 +2,87 @@
 <html>
 <head>
   <style>
-    #progress-bar {
+    .progress-bar-container {
       width: 100%;
       height: 30px;
       background-color: #f2f2f2;
+      margin-bottom: 10px;
     }
 
-    #progress {
+    .progress-bar {
       width: 100%;
       height: 100%;
       background-color: #4CAF50;
-      transition: width 20s linear;
     }
   </style>
 </head>
 <body>
   <button onclick="startProgress()">Start</button>
   <button onclick="resetProgress()">Reset</button>
-  <div id="progress-bar">
-    <div id="progress"></div>
-  </div>
+  <div id="progress-bars-container"></div>
 
   <script>
+    var progressBarsContainer = document.getElementById("progress-bars-container");
+    var progressBars = [];
+    var currentProgressIndex = 0;
     var progressInterval;
-    var progress = document.getElementById("progress");
+
+    function createProgressBars() {
+      for (var i = 0; i < 5; i++) {
+        var progressBarContainer = document.createElement("div");
+        progressBarContainer.className = "progress-bar-container";
+
+        var progressBar = document.createElement("div");
+        progressBar.className = "progress-bar";
+        progressBar.style.width = "0%";
+
+        progressBarContainer.appendChild(progressBar);
+        progressBarsContainer.appendChild(progressBarContainer);
+
+        progressBars.push(progressBar);
+      }
+    }
 
     function startProgress() {
       resetProgress();
+      currentProgressIndex = 0;
+      startNextProgress();
+    }
 
-      // Animate progress bar from full to empty over 20 seconds
-      progress.style.transitionDuration = "20s";
-      progress.style.width = "0%";
+    function startNextProgress() {
+      if (currentProgressIndex >= progressBars.length) {
+        return; // All progress bars have completed
+      }
 
-      // After 20 seconds, animate progress bar from empty to full over 10 seconds
+      var currentProgressBar = progressBars[currentProgressIndex];
+
+      // Animate current progress bar from empty to full over 20 seconds
+      currentProgressBar.style.transitionDuration = "20s";
+      currentProgressBar.style.width = "100%";
+
+      // After 20 seconds, pause for 1 second and then animate from full to empty over 10 seconds
       setTimeout(function() {
-        progress.style.transitionDuration = "10s";
-        progress.style.width = "100%";
+        currentProgressBar.style.transitionDuration = "10s";
+        currentProgressBar.style.width = "0%";
+
+        currentProgressIndex++;
+
+        // Start the next progress bar after a delay of 10 seconds
+        setTimeout(startNextProgress, 10000);
       }, 20000);
     }
 
     function resetProgress() {
       clearTimeout(progressInterval);
-      progress.style.transitionDuration = "0s";
-      progress.style.width = "100%";
+
+      for (var i = 0; i < progressBars.length; i++) {
+        var progressBar = progressBars[i];
+        progressBar.style.transitionDuration = "0s";
+        progressBar.style.width = "0%";
+      }
     }
+
+    createProgressBars();
   </script>
 </body>
 </html>
