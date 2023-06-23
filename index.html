@@ -1,46 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>HIIT Timer</title>
   <style>
-    #timer {
-      font-size: 48px;
-      text-align: center;
-      margin-top: 100px;
+    #progress-bar {
+      width: 100%;
+      height: 30px;
+      background-color: #f2f2f2;
+    }
+
+    #progress {
+      width: 100%;
+      height: 100%;
+      background-color: #4CAF50;
+      transition: width 20s linear;
     }
   </style>
 </head>
 <body>
-  <div id="timer">HIIT Timer</div>
-  <button onclick="startTimer()">Start</button>
+  <button onclick="startProgress()">Start</button>
+  <button onclick="resetProgress()">Reset</button>
+  <div id="progress-bar">
+    <div id="progress"></div>
+  </div>
 
   <script>
-    var seconds = 0;
-    var timer;
+    var progressInterval;
+    var progress = document.getElementById("progress");
 
-    function startTimer() {
-      document.getElementById('timer').innerHTML = '20 sec';
-      countdown(20); // Start the countdown from 20 seconds
+    function startProgress() {
+      resetProgress();
+
+      // Animate progress bar from full to empty over 20 seconds
+      progress.style.transitionDuration = "20s";
+      progress.style.width = "0%";
+
+      // After 20 seconds, animate progress bar from empty to full over 10 seconds
+      setTimeout(function() {
+        progress.style.transitionDuration = "10s";
+        progress.style.width = "100%";
+      }, 20000);
     }
 
-    function countdown(count) {
-      var display = document.getElementById('timer');
-
-      if (count >= 0) {
-        display.innerHTML = count + ' sec';
-        count--;
-
-        setTimeout(function() {
-          countdown(count);
-        }, 1000);
-      } else {
-        display.innerHTML = '10 sec Rest';
-        setTimeout(startTimer, 10000); // Start the next round after 10 seconds
-      }
-    }
-
-    function stopTimer() {
-      clearTimeout(timer);
+    function resetProgress() {
+      clearTimeout(progressInterval);
+      progress.style.transitionDuration = "0s";
+      progress.style.width = "100%";
     }
   </script>
 </body>
