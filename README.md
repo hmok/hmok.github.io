@@ -3,8 +3,6 @@ Welcome to the HIIT Timer!
 
 High-Intensity Interval Training (HIIT) based timer
 
-This is a High-Intensity Interval Training (HIIT) based timer.
-
 Simply click the 'Start' button to begin your workout.
 
 Each set consists of 20 seconds of intense exercise followed by a 10-second rest period.
