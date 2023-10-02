@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering Joke Generator</title>
+</head>
+<body>
+    <h1>Engineering Joke Generator</h1>
+    <p>Type a keyword related to engineering:</p>
+    <input type="text" id="keyword" placeholder="e.g., 'computer,' 'software,' 'mechanical'">
+    <button onclick="generateJoke()">Generate Joke</button>
+    <p id="joke"></p>
+
+    <script>
+        function generateJoke() {
+            const keywords = [
+                "computer",
+                "software",
+                "mechanical",
+                "electrical",
+                "civil",
+                "chemical",
+                "aerospace",
+                "biomedical",
+                "environmental",
+                "industrial"
+            ];
+
+            const inputKeyword = document.getElementById("keyword").value.toLowerCase();
+            const filteredKeywords = keywords.filter(keyword => inputKeyword.includes(keyword));
+
+            if (filteredKeywords.length > 0) {
+                const randomKeyword = filteredKeywords[Math.floor(Math.random() * filteredKeywords.length)];
+                const jokes = {
+                    "computer": "Why do programmers always mix up Christmas and Halloween? Because Oct 31 == Dec 25.",
+                    "software": "Why do programmers prefer iOS development over Android development? Because on iOS, it's less 'fragmented.'",
+                    "mechanical": "Why did the mechanical engineer attend art school? To learn how to deal with stress and strain.",
+                    "electrical": "Why did the electrical engineer always carry a pencil and paper? Because you never know when you'll come across a current event.",
+                    "civil": "Why don't civil engineers ever get invited to parties? Because they can't stop talking about their concrete achievements.",
+                    "chemical": "What do chemical engineers use to help them solve problems? Element-ary solutions.",
+                    "aerospace": "Why did the aerospace engineer bring a ladder to the bar? Because they wanted to reach new heights.",
+                    "biomedical": "Why did the biomedical engineer become a baker? Because they wanted to make some dough.",
+                    "environmental": "Why do environmental engineers make great comedians? Because they always have a lot of 'punchlines.'",
+                    "industrial": "Why did the industrial engineer bring a ladder to the job interview? Because they wanted to climb the corporate ladder!"
+                };
+
+                const randomJoke = jokes[randomKeyword];
+                document.getElementById("joke").textContent = randomJoke;
+            } else {
+                document.getElementById("joke").textContent = "Sorry, no jokes found for that keyword. Try something else!";
+            }
+        }
+    </script>
+</body>
+</html>
