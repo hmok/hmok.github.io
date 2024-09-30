@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebLLM Chat</title>
+    <title>WebLLM Chat (Simulated)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -58,7 +57,7 @@
 
 <div id="chat-container">
     <div id="chat-header">
-        WebLLM Chat
+        WebLLM Chat (Simulated)
     </div>
     <div id="chat-output">
         <p><strong>System:</strong> You are a helpful AI assistant.</p>
@@ -70,7 +69,7 @@
 </div>
 
 <script>
-    async function sendMessage() {
+    function sendMessage() {
         const userInput = document.getElementById('userInput').value;
         if (!userInput.trim()) return;
 
@@ -81,13 +80,13 @@
         chatOutput.appendChild(userMessage);
         document.getElementById('userInput').value = '';
 
-        // Simulate AI response (replace this with actual logic for AI response)
-        const aiMessage = document.createElement('p');
-        aiMessage.innerHTML = `<strong>AI:</strong> This is a simulated response.`;
-        chatOutput.appendChild(aiMessage);
-
-        // Scroll to the latest message
-        chatOutput.scrollTop = chatOutput.scrollHeight;
+        // Simulate AI response
+        setTimeout(function() {
+            const aiMessage = document.createElement('p');
+            aiMessage.innerHTML = `<strong>AI:</strong> This is a simulated AI response.`;
+            chatOutput.appendChild(aiMessage);
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+        }, 1000); // Simulate delay for response
     }
 </script>
 
