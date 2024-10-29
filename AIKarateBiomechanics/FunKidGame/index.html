@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Pose Game for Kids</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+        }
+        .canvas-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            margin: auto;
+        }
+        #videoCanvas, #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        button {
+            margin: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <h2>Interactive Pose Game for Kids</h2>
+    <div class="canvas-container">
+        <video id="inputVideo" autoplay></video>
+        <canvas id="videoCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+    </div>
+    <div>
+        <button onclick="stopStreaming()">Stop</button>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('inputVideo');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const videoCtx = videoCanvas.getContext('2d');
+        const overlayCtx = overlayCanvas.getContext('2d');
+
+        let pose;
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                videoElement.style.visibility = "visible";
+
+                // Initialize MediaPipe Pose
+                pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+                pose.setOptions({
+                    modelComplexity: 1,
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                pose.onResults(onPoseResults);
+
+                // Use MediaPipe Camera utils to process video frames
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await pose.send({ image: videoElement });
+                    },
+                    width: 640,
+                    height: 480
+                });
+                camera.start();
+            } catch (error) {
+                console.error('Error accessing the camera: ', error);
+            }
+        }
+
+        function onPoseResults(results) {
+            videoCtx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+            // Draw the video frame
+            videoCtx.drawImage(results.image, 0, 0, videoCanvas.width, videoCanvas.height);
+
+            if (results.poseLandmarks) {
+                // Draw keypoints and skeleton for pose detection
+                overlayCtx.fillStyle = 'red';
+                results.poseLandmarks.forEach(landmark => {
+                    overlayCtx.beginPath();
+                    overlayCtx.arc(landmark.x * overlayCanvas.width, landmark.y * overlayCanvas.height, 5, 0, 2 * Math.PI);
+                    overlayCtx.fill();
+                });
+
+                // Game Task 1: Arms Up!
+                const leftShoulder = results.poseLandmarks[11];
+                const leftElbow = results.poseLandmarks[13];
+                const rightShoulder = results.poseLandmarks[12];
+                const rightElbow = results.poseLandmarks[14];
+
+                if (leftElbow.y < leftShoulder.y && rightElbow.y < rightShoulder.y) {
+                    overlayCtx.fillStyle = 'yellow';
+                    overlayCtx.font = "40px Arial";
+                    overlayCtx.fillText("Arms Up!", overlayCanvas.width / 2 - 70, 50);
+                    drawFunSymbol();
+                }
+
+                // Game Task 2: Touch Toes
+                const leftAnkle = results.poseLandmarks[27];
+                const rightAnkle = results.poseLandmarks[28];
+                const leftWrist = results.poseLandmarks[15];
+                const rightWrist = results.poseLandmarks[16];
+                if (leftWrist.y > leftAnkle.y && rightWrist.y > rightAnkle.y) {
+                    overlayCtx.fillStyle = 'green';
+                    overlayCtx.font = "40px Arial";
+                    overlayCtx.fillText("Touch Your Toes!", overlayCanvas.width / 2 - 120, 150);
+                    drawFunSymbol();
+                }
+
+                // Game Task 3: Wave Hands
+                if (leftWrist.y < leftShoulder.y && leftWrist.x < leftElbow.x) {
+                    overlayCtx.fillStyle = 'orange';
+                    overlayCtx.font = "40px Arial";
+                    overlayCtx.fillText("Wave Hello!", overlayCanvas.width / 2 - 90, 250);
+                    drawFunSymbol();
+                }
+            }
+        }
+
+        function drawFunSymbol() {
+            overlayCtx.fillStyle = 'blue';
+            overlayCtx.font = "50px Arial";
+            overlayCtx.fillText("👏👏", Math.random() * overlayCanvas.width / 5, Math.random() * overlayCanvas.height /5);
+        }
+
+        function stopStreaming() {
+            const stream = videoElement.srcObject;
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            console.log('Stopping streaming...');
+        }
+
+        // Start the camera when the page loads
+        window.onload = startCamera;
+
+        videoElement.onloadeddata = () => {
+            videoCanvas.width = videoElement.videoWidth;
+            videoCanvas.height = videoElement.videoHeight;
+            overlayCanvas.width = videoElement.videoWidth;
+            overlayCanvas.height = videoElement.videoHeight;
+        };
+    </script>
+</body>
+</html>
