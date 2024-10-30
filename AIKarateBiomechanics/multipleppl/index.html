@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Person Pose Detection with YOLO and MediaPipe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f8ff;
+        }
+        .canvas-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            margin: auto;
+        }
+        #videoCanvas, #overlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        button {
+            margin: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+</head>
+<body>
+    <h2>Multi-Person Pose Detection with YOLO and MediaPipe</h2>
+    <div class="canvas-container">
+        <video id="inputVideo" autoplay></video>
+        <canvas id="videoCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+    </div>
+    <div>
+        <button onclick="stopStreaming()">Stop</button>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('inputVideo');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const videoCtx = videoCanvas.getContext('2d');
+        const overlayCtx = overlayCanvas.getContext('2d');
+
+        let pose;
+        let yoloModel;
+        let isProcessingFrame = false;
+
+        async function startCamera() {
+            try {
+                console.log('Starting camera...');
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                videoElement.style.visibility = "visible";
+
+                // Load the YOLO (COCO-SSD) model for person detection
+                console.log('Loading YOLO model...');
+                yoloModel = await cocoSsd.load();
+                console.log('YOLO model loaded.');
+
+                // Initialize MediaPipe Pose
+                console.log('Initializing MediaPipe Pose...');
+                pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+                pose.setOptions({
+                    modelComplexity: 0, // Reduce model complexity for better performance
+                    smoothLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                pose.onResults(onPoseResults);
+                console.log('MediaPipe Pose initialized.');
+
+                // Use MediaPipe Camera utils to process video frames
+                const camera = new Camera(videoElement, {
+                    onFrame: async () => {
+                        if (!isProcessingFrame) {
+                            isProcessingFrame = true;
+                            await detectPersonsAndPose();
+                            isProcessingFrame = false;
+                        }
+                    },
+                    width: 640,
+                    height: 480
+                });
+                camera.start();
+                console.log('Camera started.');
+            } catch (error) {
+                console.error('Error accessing the camera: ', error);
+            }
+        }
+
+        async function detectPersonsAndPose() {
+            try {
+                console.log('Detecting persons...');
+                const predictions = await yoloModel.detect(videoElement);
+                console.log('Persons detected:', predictions.length);
+                // Draw detected person bounding boxes
+                videoCtx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+                videoCtx.drawImage(videoElement, 0, 0, videoCanvas.width, videoCanvas.height);
+
+                overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+                // Draw bounding boxes for detected persons
+                for (const prediction of predictions) {
+                    if (prediction.class === 'person') {
+                        const [x, y, width, height] = prediction.bbox;
+                        videoCtx.strokeStyle = 'green';
+                        videoCtx.lineWidth = 2;
+                        videoCtx.strokeRect(x, y, width, height);
+                    }
+                }
+
+                // Send the full frame to MediaPipe Pose
+                console.log('Sending frame to MediaPipe Pose...');
+                await pose.send({ image: videoElement });
+                console.log('Frame processed by MediaPipe Pose.');
+            } catch (error) {
+                console.error('Error during detection or pose estimation: ', error);
+            }
+        }
+
+        function onPoseResults(results) {
+            try {
+                if (results.poseLandmarks) {
+                    console.log('Pose landmarks detected.');
+                    // Draw keypoints and skeleton for the detected person
+                    overlayCtx.fillStyle = 'red';
+                    overlayCtx.strokeStyle = 'white';
+                    overlayCtx.lineWidth = 2;
+
+                    // Draw the landmarks
+                    results.poseLandmarks.forEach(landmark => {
+                        overlayCtx.beginPath();
+                        overlayCtx.arc(landmark.x * overlayCanvas.width, landmark.y * overlayCanvas.height, 5, 0, 2 * Math.PI);
+                        overlayCtx.fill();
+                    });
+
+                    // Draw the connections
+                    const connections = Pose.POSE_CONNECTIONS;
+                    connections.forEach(([startIdx, endIdx]) => {
+                        const startLandmark = results.poseLandmarks[startIdx];
+                        const endLandmark = results.poseLandmarks[endIdx];
+                        overlayCtx.beginPath();
+                        overlayCtx.moveTo(startLandmark.x * overlayCanvas.width, startLandmark.y * overlayCanvas.height);
+                        overlayCtx.lineTo(endLandmark.x * overlayCanvas.width, endLandmark.y * overlayCanvas.height);
+                        overlayCtx.stroke();
+                    });
+                }
+            } catch (error) {
+                console.error('Error during pose results processing: ', error);
+            }
+        }
+
+        function stopStreaming() {
+            const stream = videoElement.srcObject;
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+                videoElement.srcObject = null;
+            }
+            console.log('Stopping streaming...');
+        }
+
+        // Start the camera when the page loads
+        window.onload = startCamera;
+
+        videoElement.onloadeddata = () => {
+            videoCanvas.width = videoElement.videoWidth;
+            videoCanvas.height = videoElement.videoHeight;
+            overlayCanvas.width = videoElement.videoWidth;
+            overlayCanvas.height = videoElement.videoHeight;
+        };
+    </script>
+</body>
+</html>
