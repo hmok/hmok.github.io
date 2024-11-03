@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Hand Detection with Dinosaur Explosion</title>
+    <style>
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #dinosaur {
+            position: absolute;
+            display: none;
+            width: 100px;
+            transition: transform 0.5s ease;
+            pointer-events: none;
+        }
+        #slider {
+            position: fixed;
+            bottom: 20px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: left;
+        }
+    </style>
+    <!-- Include MediaPipe libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="input_video" playsinline style="visibility: hidden;"></video>
+    <canvas id="output_canvas"></canvas>
+    <img id="dinosaur" src="https://upload.wikimedia.org/wikipedia/en/d/d2/Rexy-_the_Jurassic_Park_Tyrannosaurus_rex.png" alt="Dinosaur">
+    <input id="slider" type="range" min="1" max="5" step="0.1" value="1">
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const dinosaurElement = document.getElementById('dinosaur');
+        const sliderElement = document.getElementById('slider');
+
+        // Resize canvas when video dimensions are available
+        videoElement.addEventListener('loadeddata', () => {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+        });
+
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // Hand detection results handler
+        hands.onResults((results) => {
+            // Clear the canvas
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw the frame
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // If hand landmarks are detected
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach(handLandmarks => {
+                    drawConnectors(canvasCtx, handLandmarks, HAND_CONNECTIONS, { color: '#FF00FF', lineWidth: 2 });
+                    drawLandmarks(canvasCtx, handLandmarks, { color: '#FFFF00', lineWidth: 1, radius: 2 });
+                });
+
+                // Show the dinosaur when hands are close together
+                if (results.multiHandLandmarks.length >= 2) {
+                    const leftHand = results.multiHandLandmarks[0];
+                    const rightHand = results.multiHandLandmarks[1];
+
+                    const leftWrist = leftHand[0];
+                    const rightWrist = rightHand[0];
+
+                    if (
+                        leftWrist &&
+                        rightWrist &&
+                        Math.abs(leftWrist.x - rightWrist.x) < 0.1 &&
+                        Math.abs(leftWrist.y - rightWrist.y) < 0.1
+                    ) {
+                        // Show the dinosaur at the midpoint between hands
+                        const centerX = (leftWrist.x + rightWrist.x) / 2 * canvasElement.width;
+                        const centerY = (leftWrist.y + rightWrist.y) / 2 * canvasElement.height;
+                        dinosaurElement.style.left = `${centerX - dinosaurElement.width / 2}px`;
+                        dinosaurElement.style.top = `${centerY - dinosaurElement.height / 2}px`;
+                        dinosaurElement.style.display = 'block';
+                        dinosaurElement.style.transform = `scale(${sliderElement.value})`;
+
+                        // Make the dinosaur explode after 1 second
+                        setTimeout(() => {
+                            dinosaurElement.style.transform = `scale(${sliderElement.value * 3})`;
+                            setTimeout(() => {
+                                dinosaurElement.style.display = 'none';
+                                dinosaurElement.style.transform = `scale(${sliderElement.value})`;
+                            }, 500);
+                        }, 1000);
+                    }
+                }
+            }
+        });
+
+        // Initialize the webcam feed using the Camera API
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
+    </script>
+</body>
+</html>
