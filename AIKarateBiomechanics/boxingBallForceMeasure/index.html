@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MediaPipe Hand Detection with Spring-mounted Basketball</title>
+    <style>
+        video, canvas#output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Mirror the video for easier interaction */
+        }
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            color: white;
+        }
+        #grfChartContainer {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            width: 300px;
+            height: 150px;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        #grfChart {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <!-- MediaPipe Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <!-- Chart.js Script -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <video id="input_video" playsinline style="visibility: hidden;"></video>
+    <canvas id="output_canvas"></canvas>
+
+    <!-- Controls -->
+    <div id="controls">
+        <label for="massInput">Ball Mass (kg):</label>
+        <input type="number" id="massInput" placeholder="Enter mass in kg" value="0.6" step="0.1"><br><br>
+        <label for="anchorXInput">Anchor X:</label>
+        <input type="range" id="anchorXInput" min="0" max="1280" value="640"><br><br>
+        <label for="anchorYInput">Anchor Y:</label>
+        <input type="range" id="anchorYInput" min="0" max="720" value="620"><br><br>
+        <p id="forceOutput"></p>
+    </div>
+
+    <!-- GRF Chart Container -->
+    <div id="grfChartContainer">
+        <canvas id="grfChart"></canvas>
+    </div>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const massInput = document.getElementById('massInput');
+        const forceOutput = document.getElementById('forceOutput');
+        const anchorXInput = document.getElementById('anchorXInput');
+        const anchorYInput = document.getElementById('anchorYInput');
+
+        // Basketball Image
+        const ballImg = new Image();
+        ballImg.src = "https://upload.wikimedia.org/wikipedia/commons/7/7a/Basketball.png";
+        let ballPosition = { x: canvasElement.width / 2, y: canvasElement.height / 2 };
+        let ballRadius = 50;
+        let ballVelocity = { x: 0, y: 0, z: 0 };
+        let ballSpringAnchor = { x: parseInt(anchorXInput.value), y: parseInt(anchorYInput.value) }; // Fixed bottom anchor point
+        let springConstant = 0.05; // Spring constant for restoring force
+        let damping = 0.92; // Damping factor to reduce velocity over time
+
+        // Initialize Chart.js for force display
+        const ctx = document.getElementById('grfChart').getContext('2d');
+        const forceData = [];
+        const timeData = [];
+        let startTime = null;
+        const grfChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeData,
+                datasets: [{
+                    label: 'Force (N)',
+                    data: forceData,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                animation: false,
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: {
+                            display: true,
+                            text: 'Time (s)',
+                            color: 'white'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Force (N)',
+                            color: 'white'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                }
+            }
+        });
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults((results) => {
+            // Update anchor position from sliders
+            ballSpringAnchor.x = parseInt(anchorXInput.value);
+            ballSpringAnchor.y = parseInt(anchorYInput.value);
+
+            // Resize canvas to match video dimensions
+            canvasElement.width = results.image.width;
+            canvasElement.height = results.image.height;
+
+            // Clear the canvas for each new frame
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw hand landmarks
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2, radius: 3 });
+
+                    // Check for collision with the ball
+                    const indexFingerTip = landmarks[8]; // Index finger tip landmark
+                    const fingerX = indexFingerTip.x * canvasElement.width;
+                    const fingerY = indexFingerTip.y * canvasElement.height;
+
+                    const distX = fingerX - ballPosition.x;
+                    const distY = fingerY - ballPosition.y;
+                    const distance = Math.sqrt(distX * distX + distY * distY);
+
+                    if (distance < ballRadius) {
+                        // Collision detected
+                        ballVelocity.x = distX * 1.5; // Increased multiplier for more realistic response
+                        ballVelocity.y = distY * 1.5;
+
+                        // Calculate force
+                        const mass = parseFloat(massInput.value) || 0.6; // Ball mass in kg
+                        const force = mass * Math.sqrt(ballVelocity.x ** 2 + ballVelocity.y ** 2);
+
+                        // Display force
+                        forceOutput.textContent = `Force on Ball: ${force.toFixed(2)} N`;
+
+                        // Update force chart
+                        const currentTime = performance.now() / 1000; // Convert ms to s
+                        if (startTime === null) {
+                            startTime = currentTime;
+                        }
+                        const elapsedTime = currentTime - startTime;
+                        forceData.push(force.toFixed(2));
+                        timeData.push(elapsedTime.toFixed(2));
+
+                        // Keep only the last 50 data points
+                        if (forceData.length > 50) {
+                            forceData.shift();
+                            timeData.shift();
+                        }
+                        grfChart.update();
+                    }
+                }
+            }
+
+            // Update ball position with velocity
+            ballVelocity.x += -springConstant * (ballPosition.x - ballSpringAnchor.x);
+            ballVelocity.y += -springConstant * (ballPosition.y - ballSpringAnchor.y);
+
+            ballPosition.x += ballVelocity.x;
+            ballPosition.y += ballVelocity.y;
+
+            // Apply damping to slow down the ball over time
+            ballVelocity.x *= damping;
+            ballVelocity.y *= damping;
+
+            // Draw spring line
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(ballSpringAnchor.x, ballSpringAnchor.y);
+            canvasCtx.lineTo(ballPosition.x, ballPosition.y);
+            canvasCtx.strokeStyle = '#FFFFFF';
+            canvasCtx.lineWidth = 2;
+            canvasCtx.stroke();
+
+            // Draw the basketball
+            canvasCtx.drawImage(ballImg, ballPosition.x - ballRadius, ballPosition.y - ballRadius, ballRadius * 2, ballRadius * 2);
+        });
+
+        // Initialize the webcam feed using the Camera API
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
+    </script>
+</body>
+</html>
