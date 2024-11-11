@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand-Controlled River Raid Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        video, canvas { position: absolute; top: 0; left: 0; }
+        #gameCanvas { background: #00f; width: 100%; height: 100%; z-index: 2; }
+        #input_video { visibility: hidden; }
+    </style>
+    <!-- Include MediaPipe libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="input_video" autoplay playsinline></video>
+    <canvas id="output_canvas"></canvas>
+    <canvas id="gameCanvas" width="300" height="500"></canvas>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const gameCanvas = document.getElementById('gameCanvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const gameCtx = gameCanvas.getContext('2d');
+
+        let player = { x: 135, y: 450, width: 30, height: 30, speed: 5 };
+        let fuelTanks = [];
+        let score = 0;
+        let handX = null;
+
+        // Resize canvas when video dimensions are available
+        videoElement.addEventListener('loadeddata', () => {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+        });
+
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults((results) => {
+            // Clear the canvas
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            gameCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            // Draw the camera frame
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // If hand landmarks are detected
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const handLandmarks = results.multiHandLandmarks[0];
+                drawConnectors(canvasCtx, handLandmarks, HAND_CONNECTIONS, { color: '#FF00FF', lineWidth: 2 });
+                drawLandmarks(canvasCtx, handLandmarks, { color: '#FFFF00', lineWidth: 1, radius: 2 });
+
+                // Use the wrist landmark (index 0) to control the player
+                handX = handLandmarks[0].x;
+                movePlayerBasedOnHand();
+            }
+
+            // Draw game elements
+            drawPlayer();
+            updateFuelTanks();
+            displayScore();
+        });
+
+        // Move player based on hand position with mirrored adjustment
+        function movePlayerBasedOnHand() {
+            if (handX !== null) {
+                // Invert handX to create a mirrored effect
+                const mirroredX = 1 - handX;
+                const newX = mirroredX * gameCanvas.width - player.width / 2;
+                player.x = Math.max(0, Math.min(gameCanvas.width - player.width, newX));
+            }
+        }
+
+        // Draw player
+        function drawPlayer() {
+            gameCtx.fillStyle = 'yellow';
+            gameCtx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        // Create and update fuel tanks
+        function createFuelTank() {
+            const x = Math.random() * (gameCanvas.width - 30);
+            fuelTanks.push({ x: x, y: 0, width: 30, height: 30 });
+        }
+
+        function updateFuelTanks() {
+            fuelTanks.forEach((fuel, index) => {
+                gameCtx.fillStyle = 'red';
+                gameCtx.fillRect(fuel.x, fuel.y, fuel.width, fuel.height);
+                fuel.y += 3;
+
+                // Check for collision with player
+                if (player.x < fuel.x + fuel.width &&
+                    player.x + player.width > fuel.x &&
+                    player.y < fuel.y + fuel.height &&
+                    player.y + player.height > fuel.y) {
+                    fuelTanks.splice(index, 1);
+                    score += 10;
+                }
+
+                // Remove fuel tanks that go off screen
+                if (fuel.y > gameCanvas.height) fuelTanks.splice(index, 1);
+            });
+
+            // Add new fuel tank occasionally
+            if (Math.random() < 0.05) createFuelTank();
+        }
+
+        // Display score
+        function displayScore() {
+            gameCtx.fillStyle = 'white';
+            gameCtx.font = '20px Arial';
+            gameCtx.fillText('Score: ' + score, 10, 30);
+        }
+
+        // Initialize the webcam feed using the Camera API
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
+    </script>
+</body>
+</html>
