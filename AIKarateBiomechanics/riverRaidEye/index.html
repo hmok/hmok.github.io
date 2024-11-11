@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eye-Controlled River Raid</title>
+<style>
+  body { margin: 0; overflow: hidden; }
+  #gameCanvas { background: #00f; display: block; margin: auto; }
+  #camera { display: none; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="300" height="500"></canvas>
+<video id="camera" autoplay playsinline width="300" height="300"></video>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const videoElement = document.getElementById('camera');
+
+  let player = { x: 135, y: 450, width: 30, height: 30, speed: 5 };
+  let fuelTanks = [];
+  let score = 0;
+  let faceMesh;
+  let leftEyeX = 0, rightEyeX = 0;
+
+  // Initialize MediaPipe FaceMesh
+  async function initFaceMesh() {
+    faceMesh = new FaceMesh({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    faceMesh.onResults(onFaceMeshResults);
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await faceMesh.send({ image: videoElement });
+      },
+      width: 300,
+      height: 300,
+    });
+    camera.start();
+  }
+
+  // Handle FaceMesh results
+  function onFaceMeshResults(results) {
+    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+      const landmarks = results.multiFaceLandmarks[0];
+      leftEyeX = landmarks[33].x;  // Left eye landmark
+      rightEyeX = landmarks[263].x; // Right eye landmark
+      movePlayerBasedOnEye();
+    }
+  }
+
+  // Move player based on eye position with mirrored adjustment
+  function movePlayerBasedOnEye() {
+    const eyeCenter = (leftEyeX + rightEyeX) / 2;
+    const mirroredCenter = 1 - eyeCenter; // Invert the eye position for mirrored movement
+
+    if (mirroredCenter < 0.4 && player.x > 0) {
+      player.x -= player.speed; // Move left if eyes look left
+    } else if (mirroredCenter > 0.6 && player.x + player.width < canvas.width) {
+      player.x += player.speed; // Move right if eyes look right
+    }
+  }
+
+  // Create fuel tanks
+  function createFuelTank() {
+    const x = Math.random() * (canvas.width - 30);
+    fuelTanks.push({ x: x, y: 0, width: 30, height: 30 });
+  }
+
+  // Game loop
+  function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw player
+    ctx.fillStyle = 'yellow';
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+
+    // Draw and update fuel tanks
+    fuelTanks.forEach((fuel, index) => {
+      ctx.fillStyle = 'red';
+      ctx.fillRect(fuel.x, fuel.y, fuel.width, fuel.height);
+      fuel.y += 3;
+
+      // Check for collision with player
+      if (player.x < fuel.x + fuel.width &&
+          player.x + player.width > fuel.x &&
+          player.y < fuel.y + fuel.height &&
+          player.y + player.height > fuel.y) {
+        fuelTanks.splice(index, 1);
+        score += 10;
+      }
+
+      // Remove fuel tanks that go off screen
+      if (fuel.y > canvas.height) fuelTanks.splice(index, 1);
+    });
+
+    // Display score
+    ctx.fillStyle = 'white';
+    ctx.font = '20px Arial';
+    ctx.fillText('Score: ' + score, 10, 30);
+
+    // Add new fuel tank occasionally
+    if (Math.random() < 0.05) createFuelTank();
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Start the game
+  initFaceMesh();
+  gameLoop();
+</script>
+</body>
+</html>
