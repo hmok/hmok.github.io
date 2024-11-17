@@ -11,5 +11,5 @@ Repeat this sequence for a total of 10 sets.
 
 Thanks to ChatGPT for the support to build this app.
 
-I made a bit of change to the [Tabata Workout]([url](https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5)https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5)
+I made a bit of change to the [Tabata Workout]([url](https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5)https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5) ..
 https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5
