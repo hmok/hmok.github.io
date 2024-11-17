@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Detection Drawing</title>
+    <style>
+        body {
+            margin: 0;
+            position: relative;
+            width: 640px;
+            height: 480px;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #drawCanvas {
+            z-index: 1; /* Drawing canvas on top */
+        }
+        #overlayCanvas {
+            z-index: 2; /* Overlay canvas above drawing */
+        }
+        #status, #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+        }
+        #instructions {
+            bottom: 40px;
+        }
+    </style>
+    <!-- Corrected script sources -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="videoInput" autoplay muted style="display: none;"></video>
+    <!-- Drawing Canvas -->
+    <canvas id="drawCanvas" width="640" height="480"></canvas>
+    <!-- Overlay Canvas for Markers -->
+    <canvas id="overlayCanvas" width="640" height="480"></canvas>
+    <p id="status">Loading...</p>
+    <p id="instructions">Move index finger to draw. Pinch thumb and little finger to toggle drawing mode.</p>
+
+    <script>
+        const video = document.getElementById("videoInput");
+        const drawCanvas = document.getElementById("drawCanvas");
+        const drawCtx = drawCanvas.getContext("2d");
+        const overlayCanvas = document.getElementById("overlayCanvas");
+        const overlayCtx = overlayCanvas.getContext("2d");
+        const statusText = document.getElementById("status");
+        const instructions = document.getElementById("instructions");
+
+        let drawing = false;
+        let drawingEnabled = true;
+
+        // Flip both canvases horizontally to create a mirror effect
+        function flipCanvas(ctx, width) {
+            ctx.translate(width, 0);
+            ctx.scale(-1, 1);
+        }
+
+        // Apply flipping to both canvases
+        flipCanvas(drawCtx, drawCanvas.width);
+        flipCanvas(overlayCtx, overlayCanvas.width);
+
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7
+        });
+
+        hands.onResults(onResults);
+
+        // Initialize Camera
+        const camera = new Camera(video, {
+            onFrame: async () => {
+                await hands.send({image: video});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+
+        function onResults(results) {
+            // Clear the overlay canvas
+            overlayCtx.save();
+            overlayCtx.setTransform(1, 0, 0, 1, 0, 0); // Reset transformations
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            overlayCtx.restore();
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                
+                const indexTip = landmarks[8];
+                const thumbTip = landmarks[4];
+                const littleFingerTip = landmarks[20];
+
+                const indexTipX = indexTip.x * overlayCanvas.width;
+                const indexTipY = indexTip.y * overlayCanvas.height;
+                const thumbTipX = thumbTip.x * overlayCanvas.width;
+                const thumbTipY = thumbTip.y * overlayCanvas.height;
+                const littleFingerTipX = littleFingerTip.x * overlayCanvas.width;
+                const littleFingerTipY = littleFingerTip.y * overlayCanvas.height;
+
+                // Draw light markers for key points on the overlay canvas
+                overlayCtx.save();
+                overlayCtx.fillStyle = "lightgray";
+                overlayCtx.beginPath();
+                overlayCtx.arc(indexTipX, indexTipY, 5, 0, 2 * Math.PI);
+                overlayCtx.fill();
+                overlayCtx.beginPath();
+                overlayCtx.arc(thumbTipX, thumbTipY, 5, 0, 2 * Math.PI);
+                overlayCtx.fill();
+                overlayCtx.beginPath();
+                overlayCtx.arc(littleFingerTipX, littleFingerTipY, 5, 0, 2 * Math.PI);
+                overlayCtx.fill();
+                overlayCtx.restore();
+
+                // Toggle drawing mode if thumb and little finger are close
+                const pinchDistance = Math.hypot(thumbTipX - littleFingerTipX, thumbTipY - littleFingerTipY);
+                if (pinchDistance < 20) {
+                    if (!hands.togglePressed) { // Prevent multiple toggles per pinch
+                        drawingEnabled = !drawingEnabled;
+                        hands.togglePressed = true;
+                        instructions.textContent = drawingEnabled 
+                            ? "Drawing mode enabled. Move index finger to draw."
+                            : "Drawing mode disabled. Pinch thumb and little finger to enable.";
+                        // Add a debounce to reset togglePressed after a short delay
+                        setTimeout(() => {
+                            hands.togglePressed = false;
+                        }, 500);
+                    }
+                }
+
+                // If drawing is enabled, use the index finger tip to draw
+                if (drawingEnabled) {
+                    statusText.textContent = "Drawing Mode: ON";
+                    const distance = Math.hypot(indexTipX - thumbTipX, indexTipY - thumbTipY);
+                    
+                    if (distance >= 20) {  // Only draw if the index is not close to the thumb
+                        if (drawing) {
+                            drawCtx.lineTo(indexTipX, indexTipY);
+                            drawCtx.strokeStyle = "black"; // Set drawing color
+                            drawCtx.lineWidth = 2;        // Set line width
+                            drawCtx.stroke();
+                        } else {
+                            drawCtx.beginPath();
+                            drawCtx.moveTo(indexTipX, indexTipY);
+                            drawing = true;
+                        }
+                    } else {
+                        drawing = false;
+                    }
+                } else {
+                    statusText.textContent = "Drawing Mode: OFF";
+                    drawing = false;
+                }
+            } else {
+                statusText.textContent = "No Hand Detected";
+                drawing = false;
+            }
+        }
+    </script>
+</body>
+</html>
