@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe Pose Detection Simplified</title>
+    <style>
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="input_video" playsinline style="visibility: hidden;"></video>
+    <canvas id="output_canvas"></canvas>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        // Resize canvas when video dimensions are available
+        videoElement.addEventListener('loadeddata', () => {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+        });
+
+        // Initialize MediaPipe Pose
+        const pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // Pose detection results handler
+        pose.onResults((results) => {
+            // Clear the canvas
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw the frame
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // If pose landmarks are detected
+            if (results.poseLandmarks) {
+                // Draw landmarks and connections
+                drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+                drawLandmarks(canvasCtx, results.poseLandmarks, { color: '#FF0000', lineWidth: 1, radius: 2 });
+
+                // Calculate and display right elbow angle
+                const rightShoulder = results.poseLandmarks[POSE_LANDMARKS.RIGHT_SHOULDER];
+                const rightElbow = results.poseLandmarks[POSE_LANDMARKS.RIGHT_ELBOW];
+                const rightWrist = results.poseLandmarks[POSE_LANDMARKS.RIGHT_WRIST];
+
+                if (rightShoulder && rightElbow && rightWrist) {
+                    const angle = calculateAngle(rightShoulder, rightElbow, rightWrist);
+                    canvasCtx.font = "20px Arial";
+                    canvasCtx.fillStyle = "yellow";
+                    canvasCtx.fillText(`Elbow Angle: ${Math.round(angle)}°`, rightElbow.x * canvasElement.width, rightElbow.y * canvasElement.height - 10);
+                }
+            }
+        });
+
+        // Function to calculate angle between three points
+        function calculateAngle(A, B, C) {
+            const AB = Math.sqrt(Math.pow(B.x - A.x, 2) + Math.pow(B.y - A.y, 2));
+            const BC = Math.sqrt(Math.pow(B.x - C.x, 2) + Math.pow(B.y - C.y, 2));
+            const AC = Math.sqrt(Math.pow(C.x - A.x, 2) + Math.pow(C.y - A.y, 2));
+            return Math.acos((AB * AB + BC * BC - AC * AC) / (2 * AB * BC)) * (180 / Math.PI);
+        }
+
+        // Initialize the webcam feed using the Camera API
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await pose.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
+    </script>
+</body>
+</html>

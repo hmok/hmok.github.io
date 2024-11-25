@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MediaPipe Hand Detection with Rotatable Basketball</title>
+    <style>
+        video, canvas#output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Mirror the video for easier interaction */
+        }
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            color: white;
+        }
+    </style>
+    <!-- MediaPipe Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="input_video" playsinline style="visibility: hidden;"></video>
+    <canvas id="output_canvas"></canvas>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+
+        // Basketball Image
+        const ballImg = new Image();
+        ballImg.src = "https://upload.wikimedia.org/wikipedia/commons/7/7a/Basketball.png";
+        const ballPosition = { x: 640, y: 360 }; // Centered position on 1280x720 canvas
+        const ballRadius = 50;
+        let rotationAngle = 0;
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults((results) => {
+            // Resize canvas to match video dimensions
+            canvasElement.width = results.image.width;
+            canvasElement.height = results.image.height;
+
+            // Clear the canvas for each new frame
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw hand landmarks and calculate rotation
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, Hands.HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 3 });
+                    drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 2, radius: 3 });
+
+                    // Get index finger tip and thumb tip
+                    const indexFingerTip = landmarks[8];
+                    const thumbTip = landmarks[4];
+
+                    // Calculate angle between thumb and index finger for rotation
+                    const deltaX = (indexFingerTip.x - thumbTip.x) * canvasElement.width;
+                    const deltaY = (indexFingerTip.y - thumbTip.y) * canvasElement.height;
+                    rotationAngle = Math.atan2(deltaY, deltaX); // Angle in radians
+                }
+            }
+
+            // Draw the rotating basketball at the fixed center position
+            canvasCtx.save();
+            canvasCtx.translate(ballPosition.x, ballPosition.y);
+            canvasCtx.rotate(rotationAngle); // Apply rotation in radians
+            canvasCtx.drawImage(ballImg, -ballRadius, -ballRadius, ballRadius * 2, ballRadius * 2);
+            canvasCtx.restore();
+        });
+
+        // Initialize the webcam feed using the Camera API
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
+    </script>
+</body>
+</html>

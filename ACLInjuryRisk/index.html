@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f5f5f5;
+    }
+
+    #intro-page {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #intro-page h1 {
+      margin-top: 30px;
+      font-size: 36px;
+      color: #333;
+    }
+
+    #intro-page p {
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: #666;
+    }
+
+    .start-button {
+      margin-top: 40px;
+      padding: 15px 30px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .start-button:hover {
+      background-color: #0056b3;
+    }
+
+    #input-page {
+      display: none;
+    }
+
+    #input-page h1 {
+      margin-top: 30px;
+      font-size: 30px;
+      color: #333;
+    }
+
+    #input-page label {
+      font-size: 18px;
+      color: #333;
+    }
+
+    #input-page input[type="text"] {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+
+    #input-page button {
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    #input-page button:hover {
+      background-color: #0056b3;
+    }
+
+    #myPlot {
+      margin: 20px auto;
+      max-width: 700px;
+    }
+
+    #result-div {
+      margin-top: 30px;
+      text-align: left;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #result-div p {
+      margin-bottom: 15px;
+      font-size: 16px;
+      color: #333;
+    }
+
+    #result-div a {
+      color: #007bff;
+    }
+
+    #result-div p.note {
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div id="intro-page">
+<h1 style="text-align: center; font-size: 28px; font-weight: bold; color: #333;">ACL Injury Prevention during Landing from a Height</h1>
+<p style="text-align: justify; font-size: 18px; line-height: 1.5; color: #555;">This is a simple calculation designed to help prevent ACL injuries during landing from a height. Jumping and subsequent landing, as well as potential changes in direction, can put significant stress on the ligaments, including the anterior cruciate ligament (ACL), which is particularly vulnerable.</p>
+<p style="text-align: justify; font-size: 18px; line-height: 1.5; color: #555;">Scientific evidence suggests that when the knee flexes or bends beyond 30 or 40 degrees, the ACL becomes looser and less stressed. This raises an important question: how much should we lower our hips or overall body position to achieve this desirable knee flexion angle and enhance the protection of the knee ligaments?</p>
+<p style="text-align: justify; font-size: 18px; line-height: 1.5; color: #555;">Assuming the body height is represented as 'h' and the knee is positioned midway between the ankle and hip, we can determine the required hip displacement using the formula: <strong>x = (h / 2) - (h / 2) * sin((180 - &theta;) / 2)</strong>. Here, &theta; represents the knee flexion angle.</p>
+<p style="text-align: justify; font-size: 18px; line-height: 1.5; color: #555;">By inputting someone's height, we can provide a rough estimation of how much that person needs to lower their hips (bend their knees) to protect the knee. It is important to note that this is a simplified calculation, and seeking advice from experts is highly recommended. However, research supports the idea that bending the knee can serve as a preventive measure against ACL injuries.</p>
+    <button class="start-button" onclick="showInputPage()">Start</button>
+  </div>
+
+  <div id="input-page">
+    <h1>ACL Injury Risk Calculation</h1>
+    <label for="height-input">Enter your height (in cm):</label>
+    <input type="text" id="height-input" placeholder="Enter height">
+    <button onclick="generatePlot()">Show Risk of ACL Injury</button>
+  </div>
+
+  <div id="myPlot"></div>
+
+  <div id="result-div"></div>
+
+<button onclick="goToIntroduction()">Back to Introduction</button>
+
+
+
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script>
+    function calculateX(height, theta) {
+      const h = height;
+      const thetaRad = theta * (Math.PI / 180);
+      const x = (h / 2) - (h / 2) * Math.sin((Math.PI - thetaRad) / 2);
+      return x;
+    }
+
+    function showInputPage() {
+      const introPage = document.getElementById("intro-page");
+      const inputPage = document.getElementById("input-page");
+      introPage.style.display = "none";
+      inputPage.style.display = "block";
+    }
+
+    function generatePlot() {
+      const heightInput = document.getElementById("height-input");
+      const height = parseFloat(heightInput.value);
+
+      const thetaArray = Array.from({ length: 37 }, (_, i) => i * 5); // Theta values: 0, 5, 10, ..., 180
+      const xArray = thetaArray.map(theta => calculateX(height, theta));
+	// Find the index of the array where theta is closest to 40 degrees
+		const index40Degrees = thetaArray.findIndex(theta => theta >= 40);
+		
+      // Define Data
+      const data = [{
+        x: thetaArray,
+        y: xArray,
+        mode: "markers"
+      }];
+
+      // Define Layout
+      const layout = {
+        xaxis: { range: [0, 180], title: " Knee Flexion Angle(\u03B8 in degrees)" },
+        yaxis: { title: "Hip Displacement Downward (cm)" },
+        title: "Hip Displacement vs. Knee Flexion Angle"
+      };
+	    // Add a vertical line at the 40-degree mark
+  const shape = {
+    type: 'line',
+    x0: 40,
+    y0: 0,
+    x1: 40,
+    y1: xArray[index40Degrees],
+    line: {
+      color: 'red',
+      width: 2,
+      dash: 'dot'
+    }
+  };
+  layout.shapes = [shape];
+
+      // Display using Plotly
+      Plotly.newPlot("myPlot", data, layout);
+
+      const resultDiv = document.getElementById("result-div");
+      resultDiv.innerHTML = "";
+
+      const resultMessage = document.createElement("p");
+      resultMessage.textContent = "Please adjust your landing technique to reduce the risk of ACL injury.";
+      resultDiv.appendChild(resultMessage);
+
+      if (xArray[8] < height && xArray[8] > 0 && xArray[8] < xArray[16]) {
+        resultMessage.textContent = "";
+
+        const gifFigure = document.createElement("img");
+        gifFigure.src = "https://sipaustralia.wpenginepowered.com/wp-content/uploads/Hossein-Mokhtarzadeh.jpeg"; // Replace with the actual URL of your image
+        gifFigure.alt = "Animated Figure";
+        gifFigure.style.width = "200px"; // Set the desired width of the image
+        gifFigure.style.height = "auto"; // Maintain aspect ratio
+        resultDiv.appendChild(gifFigure);
+
+        const resultText = document.createElement("p");
+        resultText.innerHTML = `If you land using both feet on the ground and bend your knees so that your height (measured from the hip) reduces to at least <strong>${xArray[8].toFixed(2)} cm</strong> (and potentially more) when theta is greater than <strong>40</strong> degrees, then you are more likely to be safe from ACL injury.`;
+        resultDiv.appendChild(resultText);
+
+        const attribution = document.createElement("p");
+        attribution.innerHTML = 'Image credit: <a href="https://www.scienceinpublic.com.au/media-releases/footballers-knees" target="_blank">Hossein Mokhtarzadeh in Fresh Science</a>';
+        attribution.style.fontSize = "14px";
+        resultDiv.appendChild(attribution);
+
+        const note = document.createElement("p");
+        note.textContent = "Note: This is a simple calculation, and it is advisable to seek advice from experts. However, bending the knee has been proven to be preventive of ACL injury.";
+        note.classList.add("note");
+        resultDiv.appendChild(note);
+      }
+    }
+	function goToIntroduction() {
+  location.reload(); // Reload the page to go back to the introduction
+}
+
+  </script>
+</body>
+</html>

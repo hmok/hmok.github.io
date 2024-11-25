@@ -1,0 +1,24 @@
+# ACL Injury Prevention during Landing from a Height
+
+https://hmok.github.io/ACLInjuryRisk/
+
+This is a simple calculation designed to help prevent ACL injuries during landing from a height. Jumping and subsequent landing, as well as potential changes in direction, can put significant stress on the ligaments, including the anterior cruciate ligament (ACL), which is particularly vulnerable.
+
+## Overview
+
+Scientific evidence suggests that when the knee flexes or bends beyond 30 or 40 degrees, the ACL becomes looser and less stressed. This raises an important question: how much should we lower our hips or overall body position to achieve this desirable knee flexion angle and enhance the protection of the knee ligaments?
+
+## Calculation Formula
+
+Assuming the body height is represented as 'h' and the knee is positioned midway between the ankle and hip, we can determine the required hip displacement using the formula:
+
+x = (h / 2) - (h / 2) * sin((180 - θ) / 2)  
+
+Here, θ represents the knee flexion angle.
+
+## Estimation
+
+By inputting someone's height, we can provide a rough estimation of how much that person needs to lower their hips (bend their knees) to protect the knee. It is important to note that this is a simplified calculation, and seeking advice from experts is highly recommended. However, research supports the idea that bending the knee can serve as a preventive measure against ACL injuries.
+
+
+Thanks to ChatGPT for all the support!

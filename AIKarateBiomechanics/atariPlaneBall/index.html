@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karate Training Game for Kids</title>
+    <style>
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .instructions {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: left;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="input_video" playsinline style="visibility: hidden;"></video>
+    <canvas id="output_canvas"></canvas>
+    <div id="instructions" class="instructions">Move the ball left or right with your right hand! Use your left hand to shoot a copy of the ball upwards!</div>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const instructionsElement = document.getElementById('instructions');
+
+        let ball = {
+            x: canvasElement.width / 2,
+            y: (canvasElement.height / 4) * 3, // Position the ball toward the bottom center
+            radius: 30,
+            img: new Image(),
+        };
+        ball.img.src = "https://upload.wikimedia.org/wikipedia/commons/7/7a/Basketball.png";
+
+        let shots = []; // Array to hold shot balls
+        let shootCooldown = 0; // Cooldown timer for shooting
+
+        // Resize canvas when video dimensions are available
+        videoElement.addEventListener('loadeddata', () => {
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            ball.x = canvasElement.width / 2;
+            ball.y = (canvasElement.height / 4) * 3;
+        });
+
+        // Initialize MediaPipe Pose
+        const pose = new Pose({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+
+        pose.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        // Initialize MediaPipe Hands
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+
+        // Process results from both Pose and Hands
+        function onResults(results) {
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Mirror the video image
+            canvasCtx.save();
+            canvasCtx.scale(-1, 1);
+            canvasCtx.translate(-canvasElement.width, 0);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.restore();
+
+            // Draw the ball
+            canvasCtx.drawImage(ball.img, ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+
+            // Draw the shots
+            shots.forEach(shot => {
+                shot.y -= 10; // Move shot upwards
+                canvasCtx.drawImage(ball.img, shot.x - ball.radius, shot.y - ball.radius, ball.radius * 2, ball.radius * 2);
+            });
+
+            // Remove shots that are out of the canvas
+            shots = shots.filter(shot => shot.y + ball.radius > 0);
+
+            // Draw hand landmarks if detected
+            if (results.multiHandLandmarks && results.multiHandedness) {
+                results.multiHandLandmarks.forEach((handLandmarks, index) => {
+                    const mirroredHandLandmarks = handLandmarks.map(landmark => {
+                        return {
+                            x: 1 - landmark.x,
+                            y: landmark.y,
+                            z: landmark.z,
+                            visibility: landmark.visibility
+                        };
+                    });
+
+                    drawConnectors(canvasCtx, mirroredHandLandmarks, HAND_CONNECTIONS, { color: '#FF00FF', lineWidth: 2 });
+                    drawLandmarks(canvasCtx, mirroredHandLandmarks, { color: '#FFFF00', lineWidth: 1, radius: 2 });
+
+                    if (results.multiHandedness[index].label === 'Right') {
+                        controlBallMovement(mirroredHandLandmarks);
+                    } else if (results.multiHandedness[index].label === 'Left') {
+                        shootBall(mirroredHandLandmarks);
+                    }
+                });
+            }
+
+            // Update shoot cooldown
+            if (shootCooldown > 0) {
+                shootCooldown--;
+            }
+        }
+
+        // Function to control ball movement based on right-hand position
+        function controlBallMovement(handLandmarks) {
+            // Assuming the right-hand index finger landmark is at index 8
+            const rightHandIndexFinger = handLandmarks[8];
+            if (rightHandIndexFinger) {
+                const handX = rightHandIndexFinger.x * canvasElement.width;
+
+                // Move ball left or right based on hand movement, increasing sensitivity
+                if (handX < ball.x - 5) {
+                    ball.x -= 25; // Move ball to the left with more sensitivity
+                } else if (handX > ball.x + 5) {
+                    ball.x += 25; // Move ball to the right with more sensitivity
+                }
+            }
+        }
+
+        // Function to shoot a copy of the ball upwards with the left hand
+        function shootBall(handLandmarks) {
+            // Assuming the left-hand wrist landmark is at index 0
+            const leftHandWrist = handLandmarks[0];
+            if (leftHandWrist && shootCooldown === 0) { // Shoot when the left hand moves upwards and cooldown is zero
+                shots.push({ x: ball.x, y: ball.y });
+                shootCooldown = 20; // Set cooldown to limit shooting frequency
+            }
+        }
+
+        // Initialize the webcam feed using the Camera API
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await pose.send({ image: videoElement });
+                await hands.send({ image: videoElement });
+            },
+            width: 1280,
+            height: 720
+        });
+
+        pose.onResults(onResults);
+        hands.onResults(onResults);
+
+        camera.start();
+    </script>
+</body>
+</html>
