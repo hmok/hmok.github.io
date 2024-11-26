@@ -1,38 +1,25 @@
-
 # hmok.github.io
-Welcome to the HIIT Timer!
 
-High-Intensity Interval Training (HIIT) based timer
+Welcome to the **HIIT Timer**!
 
-Simply click the 'Start' button to begin your workout.
+A simple timer for **High-Intensity Interval Training (HIIT)** workouts.
 
-Each set consists of 20 seconds of intense exercise followed by a 10-second rest period.
+- **How it works**: Click 'Start' to begin. Each set includes:
+  - 20 seconds of intense exercise
+  - 10 seconds of rest
+  - Repeated for a total of 10 sets.
 
-Repeat this sequence for a total of 10 sets.
+This project was inspired by the [Tabata Workout](https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5) and includes a few customizations for enhanced functionality.
 
-Thanks to ChatGPT for the support to build this app.
-
-I made a bit of change to the [Tabata Workout]([url](https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5)https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5) ..
-https://scholar.google.com.au/scholar?q=Tabata+Workout&hl=en&as_sdt=0,5
-
-
-Here’s the final version of your text, formatted and ready for GitHub `README.md`, with proper Markdown syntax to include clickable links:
+Special thanks to ChatGPT for support in building this app.
 
 ---
 
-## License
-
-This project, including all its folders and contents, is licensed under the [GNU General Public License v3.0](LICENSE) and is the property of [PoseIQ](https://poseiq.com/), a division of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**. For trademark information, please refer to the section below.
-
-## Trademark
-
-**PoseIQ** and **ARENGS** are registered trademarks of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**. Unauthorized use of these trademarks is strictly prohibited without explicit written consent from **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**.
+### Other Projects
+This folder contains other exciting projects—stay tuned for updates!
 
 ---
 
-### How It Looks on GitHub:
-- The `[GNU General Public License v3.0](LICENSE)` link will point to your `LICENSE` file in the repository.
-- The `[PoseIQ](https://poseiq.com/)` link will take users to your company’s website.
-
-You can simply copy and paste this into your `README.md`, and it will render correctly on GitHub. Let me know if you need further adjustments!
-
+### License & Trademark
+This project, including all its contents, is licensed under the [GNU General Public License v3.0](LICENSE) and is the property of [PoseIQ](https://poseiq.com/), part of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**.  
+**PoseIQ** and **ARENGS** are registered trademarks of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**. Unauthorized use of these trademarks is strictly prohibited.
