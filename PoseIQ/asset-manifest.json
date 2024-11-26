@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/PoseIQ/static/css/main.e6c13ad2.css",
-    "main.js": "/PoseIQ/static/js/main.2af1f521.js",
+    "main.js": "/PoseIQ/static/js/main.f5f9e974.js",
     "static/js/453.ed3810f9.chunk.js": "/PoseIQ/static/js/453.ed3810f9.chunk.js",
     "index.html": "/PoseIQ/index.html",
     "main.e6c13ad2.css.map": "/PoseIQ/static/css/main.e6c13ad2.css.map",
-    "main.2af1f521.js.map": "/PoseIQ/static/js/main.2af1f521.js.map",
+    "main.f5f9e974.js.map": "/PoseIQ/static/js/main.f5f9e974.js.map",
     "453.ed3810f9.chunk.js.map": "/PoseIQ/static/js/453.ed3810f9.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.2af1f521.js"
+    "static/js/main.f5f9e974.js"
   ]
 }
