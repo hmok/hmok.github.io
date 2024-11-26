@@ -22,4 +22,4 @@ This folder contains other exciting projects—stay tuned for updates!
 
 ### License & Trademark
 This project, including all its contents, is licensed under the [GNU General Public License v3.0](LICENSE) and is the property of [PoseIQ](https://poseiq.com/), part of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**.  
-**PoseIQ** and **ARENGS** are registered trademarks of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**. Unauthorized use of these trademarks is strictly prohibited.
+**PoseIQ™** and **ARENGS™** are registered trademarks of **ARVINNOVATE ENGINEERING SOLUTIONS PTY LTD**. Unauthorized use of these trademarks is strictly prohibited.
