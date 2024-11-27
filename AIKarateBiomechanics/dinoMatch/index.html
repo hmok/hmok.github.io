@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dinosaur Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            z-index: 1;
+        }
+        #input_video {
+            display: none;
+        }
+        .score {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 18px;
+            z-index: 10;
+        }
+        .instructions {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 10;
+            max-width: 250px;
+        }
+        .dino-name-container {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px;
+            z-index: 10;
+        }
+        .dino-name {
+            color: white;
+            padding: 5px 10px;
+            margin: 5px;
+            border: 1px solid white;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            min-width: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dino-name.correct {
+            background: green;
+        }
+        .dino-name img {
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+</head>
+<body>
+    <video id="input_video" playsinline></video>
+    <canvas id="output_canvas"></canvas>
+    <div class="score" id="score">Score: 0</div>
+    <div class="instructions">Pinch with your thumb and index finger over the dinosaur to grab it. Move it over the correct name and release to drop it.</div>
+    <div class="dino-name-container" id="dino_names"></div>
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const dinoNamesContainer = document.getElementById('dino_names');
+
+        const dinoData = [
+            { name: "Ankylosaurus", img: "images/dino1.png" },
+            { name: "Brachiosaurus", img: "images/dino2.png" },
+            { name: "Pachycephalosaurus", img: "images/dino3.png" },
+            { name: "Parasaurolophus", img: "images/dino4.png" },
+            { name: "Pteranodon", img: "images/dino5.png" },
+            { name: "Spinosaurus", img: "images/dino6.png" },
+            { name: "Stegosaurus", img: "images/dino7.png" },
+            { name: "Triceratops", img: "images/dino8.png" },
+            { name: "Tyrannosaurus Rex", img: "images/dino9.png" },
+            { name: "Velociraptor", img: "images/dino10.png" },
+        ];
+
+        let currentDino = null;
+        let score = 0;
+        let dinoX = 0;
+        let dinoY = 0;
+        const dinoWidth = 150;
+        const dinoHeight = 150;
+
+        const dinoImages = {};
+        let imagesLoaded = 0;
+
+        // Load dinosaur images
+        dinoData.forEach(dino => {
+            const img = new Image();
+            img.src = dino.img;
+            img.onload = () => {
+                imagesLoaded++;
+                if (imagesLoaded === dinoData.length) {
+                    startNewDino();
+                }
+            };
+            dinoImages[dino.name] = img;
+        });
+
+        // Populate names with images
+        dinoData.forEach(dino => {
+            const nameElement = document.createElement("div");
+            nameElement.classList.add("dino-name");
+            nameElement.dataset.name = dino.name;
+
+            const smallImg = document.createElement("img");
+            smallImg.src = dino.img;
+            smallImg.alt = dino.name;
+
+            const nameText = document.createElement("span");
+            nameText.textContent = dino.name;
+
+            nameElement.appendChild(smallImg);
+            nameElement.appendChild(nameText);
+            dinoNamesContainer.appendChild(nameElement);
+        });
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.7,
+        });
+
+        function resizeCanvas() {
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let grabbed = false;
+
+        hands.onResults(results => {
+            if (!results.image) return; // Prevent errors if no image is processed
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            if (currentDino) {
+                canvasCtx.drawImage(dinoImages[currentDino.name], dinoX, dinoY, dinoWidth, dinoHeight);
+            }
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const hand = results.multiHandLandmarks[0];
+                const thumbTip = hand[4];
+                const indexTip = hand[8];
+
+                const thumbX = thumbTip.x * canvasElement.width;
+                const thumbY = thumbTip.y * canvasElement.height;
+                const indexX = indexTip.x * canvasElement.width;
+                const indexY = indexTip.y * canvasElement.height;
+
+                const distance = Math.hypot(thumbX - indexX, thumbY - indexY);
+
+                if (distance < 40 && isHandOverDino(indexX, indexY)) {
+                    grabbed = true;
+                } else if (grabbed) {
+                    grabbed = false;
+                    checkCollision();
+                    startNewDino();
+                }
+
+                if (grabbed) {
+                    dinoX = indexX - dinoWidth / 2;
+                    dinoY = indexY - dinoHeight / 2;
+                }
+				drawConnectors(canvasCtx, hand, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+                drawLandmarks(canvasCtx, hand, { color: '#FF0000', lineWidth: 1 });
+            }
+        });
+		    // **Do not flip the canvas**
+             canvasCtx.translate(canvasElement.width, 0);
+             canvasCtx.scale(-1, 1);
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                if (hands && videoElement.readyState >= 2) {
+                    await hands.send({ image: videoElement });
+                }
+            },
+            width: window.innerWidth,
+            height: window.innerHeight,
+        });
+
+        camera.start();
+
+        function startNewDino() {
+            currentDino = dinoData[Math.floor(Math.random() * dinoData.length)];
+            dinoX = Math.random() * (canvasElement.width - dinoWidth);
+            dinoY = Math.random() * (canvasElement.height - dinoHeight - dinoNamesContainer.offsetHeight - 20) + 10;
+        }
+
+        function checkCollision() {
+            const nameElements = document.querySelectorAll(".dino-name");
+            nameElements.forEach(nameElement => {
+                const rect = nameElement.getBoundingClientRect();
+                const dinoRect = {
+                    left: dinoX,
+                    top: dinoY,
+                    right: dinoX + dinoWidth,
+                    bottom: dinoY + dinoHeight,
+                };
+                const isCollision = !(dinoRect.right < rect.left ||
+                    dinoRect.left > rect.right ||
+                    dinoRect.bottom < rect.top ||
+                    dinoRect.top > rect.bottom);
+                if (isCollision && nameElement.dataset.name === currentDino.name) {
+                    score++;
+                    scoreElement.textContent = `Score: ${score}`;
+                    nameElement.classList.add("correct");
+                    setTimeout(() => nameElement.classList.remove("correct"), 1000);
+                }
+            });
+        }
+
+        function isHandOverDino(x, y) {
+            return x >= dinoX && x <= dinoX + dinoWidth && y >= dinoY && y <= dinoY + dinoHeight;
+        }
+    </script>
+</body>
+</html>
