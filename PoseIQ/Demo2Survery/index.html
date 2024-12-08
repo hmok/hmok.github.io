@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoseIQ Demo with NDA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        textarea, input[type="text"], input[type="email"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        label {
+            font-size: 14px;
+        }
+        .hidden {
+            display: none;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            text-align: left;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        .close {
+            float: right;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PoseIQ Demo</h1>
+
+        <!-- NDA Modal -->
+        <div class="modal" id="ndaModal">
+            <div class="modal-content">
+                <span class="close" onclick="closeNdaModal()">×</span>
+                <h2>Non-Disclosure Agreement</h2>
+                <p>
+                    By participating in this demo, you agree to keep all disclosed information confidential, 
+                    not to use it for unauthorized purposes, and to comply with the terms outlined in the full 
+                    NDA document provided.
+                </p>
+                <p>
+                    This agreement is legally binding and subject to the laws of Victoria, Australia. 
+                    Full terms can be viewed upon request.
+                </p>
+                <button onclick="acceptNda()">I Agree</button>
+            </div>
+        </div>
+
+        <!-- Step 1: Email Collection -->
+        <div id="step1">
+            <h2>Enter Your Email</h2>
+            <input type="email" id="email" placeholder="Your Email" required>
+            <label>
+                <input type="checkbox" id="ndaAccept" onclick="showNdaModal()"> I accept the NDA terms.
+            </label>
+            <button onclick="moveToStep2()">Next</button>
+        </div>
+
+        <!-- Step 2: Password Validation -->
+        <div id="step2" class="hidden">
+            <h2>Enter Temporary Password</h2>
+            <input type="text" id="tempPassword" placeholder="Temporary Password" required>
+            <button onclick="moveToStep3()">Submit</button>
+        </div>
+
+        <!-- Step 3: Demo Selection -->
+        <div id="step3" class="hidden">
+            <h2>Select a Demo</h2>
+            <button onclick="startDemo('Pose Tracker')">Pose Tracker</button>
+            <button onclick="startDemo('Squat Feedback')">Squat Feedback</button>
+            <p id="demoStatus"></p>
+        </div>
+    </div>
+
+    <script>
+        // Manage NDA modal
+        function showNdaModal() {
+            const modal = document.getElementById('ndaModal');
+            modal.style.display = 'flex';
+        }
+
+        function closeNdaModal() {
+            const modal = document.getElementById('ndaModal');
+            modal.style.display = 'none';
+            document.getElementById('ndaAccept').checked = false; // Reset checkbox
+        }
+
+        function acceptNda() {
+            closeNdaModal();
+            document.getElementById('ndaAccept').checked = true; // Mark NDA as accepted
+        }
+
+        // Manage steps navigation
+        function moveToStep2() {
+            const email = document.getElementById('email').value;
+            const ndaAccepted = document.getElementById('ndaAccept').checked;
+
+            if (!email) {
+                alert("Please enter a valid email.");
+                return;
+            }
+            if (!ndaAccepted) {
+                alert("You must accept the NDA to proceed.");
+                return;
+            }
+
+            // Move to Step 2
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+        }
+
+        function moveToStep3() {
+            const tempPassword = document.getElementById('tempPassword').value;
+
+            if (tempPassword === "demo123") {
+                alert("Password validated!");
+                document.getElementById('step2').classList.add('hidden');
+                document.getElementById('step3').classList.remove('hidden');
+            } else {
+                alert("Invalid password. Please try again.");
+            }
+        }
+
+        function startDemo(demoName) {
+            document.getElementById('demoStatus').innerText = demoName + " is loading...";
+            alert(demoName + " started! This is where your Mediapipe code will go.");
+        }
+    </script>
+</body>
+</html>
