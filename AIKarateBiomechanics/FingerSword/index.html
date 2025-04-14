@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hand Slash with Sword Trail & Depth Adjustment</title>
+
+    <!-- MediaPipe Hands and Utilities -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #222;
+        font-family: Arial, sans-serif;
+      }
+      #uiContainer {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 99;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      #uiContainer div {
+        margin-bottom: 5px;
+      }
+      #uiContainer label {
+        font-size: 0.9em;
+      }
+      #score,
+      #lives {
+        font-size: 1.2em;
+        margin-bottom: 5px;
+      }
+      /* Hide the raw video */
+      #video {
+        display: none;
+      }
+      /* Debug preview for hand landmarks (smaller overlay) */
+      #output_canvas {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 98;
+        pointer-events: none;
+        width: 200px;
+        height: 150px;
+        border: 2px solid red;
+      }
+      /* Three.js container fills the window */
+      #three_container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 1;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- UI Overlay -->
+    <div id="uiContainer">
+      <div id="score">Score: 0</div>
+      <div id="lives">Lives: 5</div>
+      <div>
+        <label for="trailSlider">Trail Length: <span id="trailValue">10</span></label><br>
+        <input type="range" id="trailSlider" min="5" max="20" value="10">
+      </div>
+      <div>
+        <label for="depthSlider">Sword Depth: <span id="depthValue">0</span></label><br>
+        <input type="range" id="depthSlider" min="-5" max="5" step="0.1" value="0">
+      </div>
+    </div>
+
+    <!-- Hidden video input -->
+    <video id="video" autoplay muted playsinline></video>
+
+    <!-- Debug canvas for hand detection preview -->
+    <canvas id="output_canvas" width="640" height="480"></canvas>
+
+    <!-- Container for Three.js scene -->
+    <div id="three_container"></div>
+
+    <script type="module">
+      /*************************************
+       * 1) Import Three.js via ES Modules
+       *************************************/
+      import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+      /*************************************
+       * 2) Setup MediaPipe Hands
+       *************************************/
+      const videoElement = document.getElementById('video');
+      const canvasElement = document.getElementById('output_canvas');
+      const canvasCtx = canvasElement.getContext('2d');
+
+      const scoreElem = document.getElementById('score');
+      const livesElem = document.getElementById('lives');
+      const trailSlider = document.getElementById('trailSlider');
+      const depthSlider = document.getElementById('depthSlider');
+      const trailValueElem = document.getElementById('trailValue');
+      const depthValueElem = document.getElementById('depthValue');
+
+      let score = 0;
+      let lives = 5;
+
+      // Update slider display values
+      trailSlider.addEventListener('input', () => {
+        trailValueElem.textContent = trailSlider.value;
+      });
+      depthSlider.addEventListener('input', () => {
+        depthValueElem.textContent = depthSlider.value;
+      });
+
+      // Initialize MediaPipe Hands
+      const hands = new Hands({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+      hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      const { drawConnectors, drawLandmarks, HAND_CONNECTIONS } = window;
+
+      // 2D fingertip coordinates (in pixel space)
+      let slashX = null;
+      let slashY = null;
+
+      hands.onResults((results) => {
+        canvasCtx.save();
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+          for (const landmarks of results.multiHandLandmarks) {
+            drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
+            drawLandmarks(canvasCtx, landmarks, { color: '#FF0000', lineWidth: 1 });
+            // Landmark index 8 is the index fingertip
+            const indexTip = landmarks[8];
+            if (indexTip) {
+              slashX = indexTip.x * canvasElement.width;
+              slashY = indexTip.y * canvasElement.height;
+              canvasCtx.beginPath();
+              canvasCtx.arc(slashX, slashY, 10, 0, 2 * Math.PI);
+              canvasCtx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+              canvasCtx.fill();
+              canvasCtx.closePath();
+            }
+          }
+        } else {
+          slashX = null;
+          slashY = null;
+        }
+        canvasCtx.restore();
+      });
+
+      // Initialize MediaPipe Camera
+      const mpCamera = new Camera(videoElement, {
+        onFrame: async () => {
+          await hands.send({ image: videoElement });
+        },
+        width: 640,
+        height: 480
+      });
+      mpCamera.start();
+
+      /*************************************
+       * 3) Setup Three.js Scene
+       *************************************/
+      let scene, camera3D, renderer, clock;
+      const threeContainer = document.getElementById('three_container');
+
+      function initThree() {
+        scene = new THREE.Scene();
+        camera3D = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera3D.position.z = 12;  // Push the camera back a little for a broader view
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        threeContainer.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        dirLight.position.set(10, 10, 10);
+        scene.add(dirLight);
+
+        clock = new THREE.Clock();
+      }
+
+      /*************************************
+       * 4) Sword Indicator & Trail in 3D
+       *************************************/
+      let swordSphere;  // 3D indicator for the sword tip
+      let trailPoints = []; // Array to hold recent sword positions
+      let maxTrailPoints = Number(trailSlider.value); // controlled by slider
+      let trailLine; // THREE.Line object for the sword trail
+
+      function createSwordIndicator() {
+        const geometry = new THREE.SphereGeometry(0.2, 16, 16);
+        const material = new THREE.MeshPhongMaterial({ color: 0xff66ff });
+        swordSphere = new THREE.Mesh(geometry, material);
+        swordSphere.position.set(999, 999, 999);
+        scene.add(swordSphere);
+      }
+
+      function createSwordTrail() {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(maxTrailPoints * 3);
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.LineBasicMaterial({ color: 0xffff00 });
+        trailLine = new THREE.Line(geometry, material);
+        scene.add(trailLine);
+      }
+
+      function updateSwordTrail() {
+        maxTrailPoints = Number(trailSlider.value);
+        // If our trailPoints array is longer than maxTrailPoints, trim it
+        while (trailPoints.length > maxTrailPoints) {
+          trailPoints.shift();
+        }
+        // Always push the current swordSphere position
+        trailPoints.push(swordSphere.position.clone());
+        // Prepare positions array
+        const positions = new Float32Array(maxTrailPoints * 3);
+        for (let i = 0; i < trailPoints.length; i++) {
+          positions[i * 3] = trailPoints[i].x;
+          positions[i * 3 + 1] = trailPoints[i].y;
+          positions[i * 3 + 2] = trailPoints[i].z;
+        }
+        trailLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        trailLine.geometry.attributes.position.needsUpdate = true;
+      }
+
+      /*************************************
+       * 5) Spawning Shapes (Fruit Ninja Style)
+       *************************************/
+      const objectsToSlash = [];
+      const spawnInterval = 2; // seconds
+      let timeSinceLastSpawn = 0;
+
+      function spawnShape() {
+        let geometry;
+        if (Math.random() < 0.5) {
+          geometry = new THREE.SphereGeometry(0.5, 16, 16);
+        } else {
+          geometry = new THREE.BoxGeometry(1, 1, 1);
+        }
+        const material = new THREE.MeshPhongMaterial({ color: randomColor() });
+        const shape = new THREE.Mesh(geometry, material);
+        const randomX = (Math.random() * 10) - 5;
+        // Spawn shapes with a random z value (for depth)
+        const randomZ = (Math.random() * 4) - 2;
+        shape.position.set(randomX, -6, randomZ);
+        scene.add(shape);
+        objectsToSlash.push(shape);
+      }
+
+      function randomColor() {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+
+      /*************************************
+       * 6) Update Loop: Movement, Collisions, & Rendering
+       *************************************/
+      function update() {
+        const delta = clock.getDelta();
+
+        timeSinceLastSpawn += delta;
+        if (timeSinceLastSpawn > spawnInterval) {
+          spawnShape();
+          timeSinceLastSpawn = 0;
+        }
+
+        // Move shapes upward
+        for (let i = objectsToSlash.length - 1; i >= 0; i--) {
+          const obj = objectsToSlash[i];
+          obj.position.y += 1 * delta;
+          if (obj.position.y > 6) {
+            scene.remove(obj);
+            objectsToSlash.splice(i, 1);
+            lives--;
+            livesElem.textContent = `Lives: ${lives}`;
+            if (lives <= 0) {
+              resetGame();
+              return;
+            }
+          }
+        }
+
+        // Update the sword if a hand is detected
+        if (slashX !== null && slashY !== null) {
+          updateSwordPosition();
+          updateSwordTrail();
+          checkCollisions();
+        } else {
+          swordSphere.position.set(999, 999, 999);
+        }
+      }
+
+      // Convert 2D fingertip (mirrored) to a 3D position using a plane at adjustable depth
+      function updateSwordPosition() {
+        // Mirror the x coordinate: flip the normalized value
+        const ndcX = -((slashX / canvasElement.width) * 2 - 1);
+        const ndcY = -(slashY / canvasElement.height) * 2 + 1;
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera3D);
+
+        // Use the slider value for sword depth (convert it to a number)
+        const swordDepth = Number(depthSlider.value);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), swordDepth);
+        const intersectPoint = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, intersectPoint);
+        swordSphere.position.copy(intersectPoint);
+      }
+
+      function checkCollisions() {
+        const ndcX = -((slashX / canvasElement.width) * 2 - 1);
+        const ndcY = -(slashY / canvasElement.height) * 2 + 1;
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera3D);
+        const intersects = raycaster.intersectObjects(objectsToSlash, true);
+        if (intersects.length > 0) {
+          const hitObj = intersects[0].object;
+          scene.remove(hitObj);
+          objectsToSlash.splice(objectsToSlash.indexOf(hitObj), 1);
+          score++;
+          scoreElem.textContent = `Score: ${score}`;
+        }
+      }
+
+      function resetGame() {
+        for (let i = objectsToSlash.length - 1; i >= 0; i--) {
+          scene.remove(objectsToSlash[i]);
+        }
+        objectsToSlash.length = 0;
+        score = 0;
+        lives = 5;
+        scoreElem.textContent = `Score: 0`;
+        livesElem.textContent = `Lives: 5`;
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        update();
+        renderer.render(scene, camera3D);
+      }
+
+      /*************************************
+       * 7) Initialize Everything
+       *************************************/
+      initThree();
+      createSwordIndicator();
+      createSwordTrail();
+      animate();
+
+      window.addEventListener('resize', () => {
+        camera3D.aspect = window.innerWidth / window.innerHeight;
+        camera3D.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>
