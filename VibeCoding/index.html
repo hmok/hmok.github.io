@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Color Matching Game - Chapter 5</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #targetColor {
+      width: 100px;
+      height: 100px;
+      margin: 20px auto;
+      border: 2px solid #333;
+    }
+
+    .color-ball {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: inline-block;
+      margin: 10px;
+      cursor: pointer;
+      border: 2px solid #333;
+    }
+
+    #message {
+      font-size: 20px;
+      margin-top: 20px;
+    }
+
+    #score-container {
+      font-size: 20px;
+      margin-top: 15px;
+    }
+
+    #win-message {
+      font-size: 24px;
+      font-weight: bold;
+      color: green;
+      display: none;
+      margin-top: 20px;
+    }
+
+    #reset-btn {
+      margin-top: 25px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    #reset-btn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Color Matching Game</h1>
+  <p>Match the color of the box with the correct ball!</p>
+
+  <div id="targetColor"></div>
+
+  <div id="balls-container"></div>
+
+  <div id="message"></div>
+  <div id="score-container">Score: <span id="score">0</span></div>
+  <div id="win-message">You win!</div>
+
+  <button id="reset-btn">Reset Game</button>
+
+  <script>
+    const targetColorBox = document.getElementById('targetColor');
+    const ballsContainer = document.getElementById('balls-container');
+    const message = document.getElementById('message');
+    const scoreDisplay = document.getElementById('score');
+    const winMessage = document.getElementById('win-message');
+    const resetButton = document.getElementById('reset-btn');
+
+    let score = 0;
+    let correctColor = '';
+
+    function getRandomColor() {
+      const r = Math.floor(Math.random() * 256);
+      const g = Math.floor(Math.random() * 256);
+      const b = Math.floor(Math.random() * 256);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function generateGame() {
+      ballsContainer.innerHTML = '';
+      message.textContent = '';
+      correctColor = getRandomColor();
+      targetColorBox.style.backgroundColor = correctColor;
+
+      const correctIndex = Math.floor(Math.random() * 4);
+
+      for (let i = 0; i < 4; i++) {
+        const ball = document.createElement('div');
+        ball.classList.add('color-ball');
+
+        const color = i === correctIndex ? correctColor : getRandomColor();
+        ball.style.backgroundColor = color;
+
+        ball.addEventListener('click', function () {
+          if (score >= 5) return; // Prevent clicks after winning
+
+          if (color === correctColor) {
+            message.textContent = 'Correct!';
+            score += 1;
+            scoreDisplay.textContent = score;
+
+            if (score >= 5) {
+              winMessage.style.display = 'block';
+            } else {
+              setTimeout(generateGame, 1000); // Load next round
+            }
+          } else {
+            message.textContent = 'Try again!';
+          }
+        });
+
+        ballsContainer.appendChild(ball);
+      }
+    }
+
+    function resetGame() {
+      score = 0;
+      scoreDisplay.textContent = score;
+      winMessage.style.display = 'none';
+      message.textContent = '';
+      generateGame();
+    }
+
+    resetButton.addEventListener('click', resetGame);
+
+    // Start the game
+    generateGame();
+  </script>
+
+</body>
+</html>
